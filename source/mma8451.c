@@ -2,6 +2,11 @@
  *    DSI: http://www.dsi.fceia.unr.edu.ar/
  *  Diego Alegrechi
  *  Gustavo Muro
+ *
+ *  Adaptación para detección de Caída Libre:
+ *  Franco Montanari
+ *  Dante Conti
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,9 +45,11 @@
 #include "stdbool.h"
 #include "fsl_debug_console.h"
 
+
 /*==================[macros and definitions]=================================*/
 #define MMA8451_I2C_ADDRESS     (0x1d)
 
+#if defined _MKL46Z4_H_
 #define INT1_PORT       PORTC
 #define INT1_GPIO       GPIOC
 #define INT1_PIN        5
@@ -50,6 +57,19 @@
 #define INT2_PORT		PORTD
 #define INT2_GPIO		GPIOD
 #define INT2_PIN		1
+
+#elif defined _MKL43Z4_H_
+
+// TODO: Definir para otro KL43Z
+#define INT1_PORT       PORTC
+#define INT1_GPIO       GPIOC
+#define INT1_PIN        -1
+
+#define INT2_PORT		PORTD
+#define INT2_GPIO		GPIOD
+#define INT2_PIN		1
+
+#endif
 
 typedef union
 {
@@ -409,7 +429,7 @@ void mma8451_init_freefall(void){
 
 	CTRL_REG1_t ctr_reg1;
 	ctr_reg1.ACTIVE = 0;
-	ctr_reg1.DR= DR_50hz;
+	ctr_reg1.DR= DR_12p5hz;
 	mma8451_write_reg(CTRL_REG1_ADDRESS, ctr_reg1.data);
 
 
@@ -499,7 +519,7 @@ void enableDataInterrupt(){
 void disableDataInterrupt(){
 	CTRL_REG1_t ctr_reg1;
 	ctr_reg1.ACTIVE = 0;
-	ctr_reg1.DR = DR_50hz;
+	ctr_reg1.DR = DR_12p5hz;
 	mma8451_write_reg(CTRL_REG1_ADDRESS, ctr_reg1.data);
 
 	// 5) Habilitar funcionalidad de interrupt
