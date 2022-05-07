@@ -87,7 +87,6 @@ static uint16_t contador = 0;
  */
 int main(void) {
 
-	// TEMPORAL!
 	// Esto es solo para testear ahora.
 	// Habría que mantener una bandera en el driver
 	// que indique en qué modo está trabajando, porque
