@@ -49,7 +49,7 @@
 /*==================[macros and definitions]=================================*/
 #define MMA8451_I2C_ADDRESS     (0x1d)
 
-#if defined _MKL46Z4_H_
+#if defined CPU_MKL46Z256VLL4
 #define INT1_PORT       PORTC
 #define INT1_GPIO       GPIOC
 #define INT1_PIN        5
@@ -347,7 +347,7 @@ void mma8451_init_continuous(void)
 	ctrl_reg1.F_READ = 0;
 	ctrl_reg1.LNOISE = 1;
 	ctrl_reg1.ASLP_RATE = 0B00;
-	ctrl_reg1.DR= DR_100hz;
+	ctrl_reg1.DR= DR_50hz;
 	mma8451_write_reg(CTRL_REG1_ADDRESS, ctrl_reg1.data);
 
 	// Habilitar y routear interrupción de Data Ready
@@ -496,20 +496,20 @@ void mma8451_init_freefall(void){
 void enableDataInterrupt(){
 	CTRL_REG1_t ctr_reg1;
 	ctr_reg1.ACTIVE = 0;
-	ctr_reg1.DR = DR_100hz;
+	ctr_reg1.DR = DR_50hz;
 	mma8451_write_reg(CTRL_REG1_ADDRESS, ctr_reg1.data);
 
 	// 5) Habilitar funcionalidad de interrupt
 	CTRL_REG4_t ctr_reg4;
-	ctr_reg4.INT_EN_FF_MT = 1;
+	ctr_reg4.INT_EN_FF_MT = 0;
 	ctr_reg4.INT_EN_DRDY = 1;
 	mma8451_write_reg(CTRL_REG4_ADDRESS, ctr_reg4.data);
 
-	// 6) Routear interrupcion INT2 (FreeFall)
-	CTRL_REG5_t ctr_reg5;
-	ctr_reg5.INT_CFG_DRDY = 1;
-	ctr_reg5.INT_CFG_FF_MT = 0;
-	mma8451_write_reg(CTRL_REG5_ADDRESS, ctr_reg5.data);
+//	// 6) Routear interrupcion INT2 (FreeFall)
+//	CTRL_REG5_t ctr_reg5;
+//	ctr_reg5.INT_CFG_DRDY = 1;
+//	ctr_reg5.INT_CFG_FF_MT = 0;
+//	mma8451_write_reg(CTRL_REG5_ADDRESS, ctr_reg5.data);
 
 	// 7) Poner dispositivo en modo Activo 50 Hz
 	ctr_reg1.ACTIVE = 1;
@@ -529,10 +529,10 @@ void disableDataInterrupt(){
 	mma8451_write_reg(CTRL_REG4_ADDRESS, ctr_reg4.data);
 
 	// 6) Routear interrupcion INT2 (FreeFall)
-	CTRL_REG5_t ctr_reg5;
-	ctr_reg5.INT_CFG_DRDY = 0;
-	ctr_reg5.INT_CFG_FF_MT = 0;
-	mma8451_write_reg(CTRL_REG5_ADDRESS, ctr_reg5.data);
+//	CTRL_REG5_t ctr_reg5;
+//	ctr_reg5.INT_CFG_DRDY = 0;
+//	ctr_reg5.INT_CFG_FF_MT = 0;
+//	mma8451_write_reg(CTRL_REG5_ADDRESS, ctr_reg5.data);
 
 	// 7) Poner dispositivo en modo Activo 50 Hz
 	ctr_reg1.ACTIVE = 1;
@@ -574,8 +574,6 @@ void PORTC_PORTD_IRQHandler(void)
 	// INT1
     if(GPIO_GetPinsInterruptFlags(INT1_GPIO))
     {
-    	PORT_ClearPinsInterruptFlags(INT1_PORT, 1<<INT1_PIN);
-
     	int16_t readG;
 		INT_SOURCE_t intSource;
 		STATUS_t status;
@@ -606,16 +604,16 @@ void PORTC_PORTD_IRQHandler(void)
 				readZ = readG >> 2;
 			}
 		}
+    	PORT_ClearPinsInterruptFlags(INT1_PORT, 1<<INT1_PIN);
     }
 
     // INT 2
     if(GPIO_GetPinsInterruptFlags(INT2_GPIO)){
 
-    	PORT_ClearPinsInterruptFlags(INT2_PORT, 1<<INT2_PIN);
-
     	// Detectamos la caída, ahora hay que limpiar el registro para que
     	// podamos detectar una nueva si llegamos a necesitarlo.
     	FF_MT_SRC intFreefallSource;
+
     	intFreefallSource.data = mma8451_read_reg(FF_MT_SRC_ADDRESS);
 
     	// La bandera EA avisa si se detectó el evento.
@@ -624,8 +622,8 @@ void PORTC_PORTD_IRQHandler(void)
     		// Tal vez en vez de poner la bandera en true, deberíamos cambiar acá
 			// el modo del procesador en RUN.
 			freefall = true;
-			enableDataInterrupt();
     	}
+    	PORT_ClearPinsInterruptFlags(INT2_PORT, 1<<INT2_PIN);
     }
 }
 
