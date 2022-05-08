@@ -1,3 +1,4 @@
+// Librerias comunes a ambas placas
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
@@ -9,17 +10,19 @@
 #include "clock_config.h"
 #include "fsl_debug_console.h"
 #include "fsl_smc.h"
+#include "key.h"
+#include "SD2_I2C.h"
 
-/* TODO: insert other include files here. */
+// Librerias que difieren
 #include "MKL43Z4.h"
 #include "clock_helper_KL43.h"
 #include "SD2_board_KL43.h"
 #include "fsl_common.h"
 #include "fsl_slcd.h"
+#include "mma8451.h" // cambia en el .c la funcion para leer IRQ de los pines
 //#include "slcd_engine.h"
-#include "key.h"
-#include "SD2_I2C.h"
-#include "mma8451.h"
+//#include "Seg_LCD.h"
+//#include "fsl_lpsci.h"
 
 
 /* TODO: insert other definitions and declarations here. */
