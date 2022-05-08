@@ -1,57 +1,29 @@
-/*
- * Copyright 2016-2022 NXP
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *
- * o Redistributions of source code must retain the above copyright notice, this list
- *   of conditions and the following disclaimer.
- *
- * o Redistributions in binary form must reproduce the above copyright notice, this
- *   list of conditions and the following disclaimer in the documentation and/or
- *   other materials provided with the distribution.
- *
- * o Neither the name of NXP Semiconductor, Inc. nor the names of its
- *   contributors may be used to endorse or promote products derived from this
- *   software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-
-/**
- * @file    SD2_TP2.c
- * @brief   Application entry point.
- */
+// Librerias comunes a ambas placas
 #include <stdio.h>
+#include <stdbool.h>
+#include <string.h>
+#include <stdint.h>
+#include "math.h"
 #include "board.h"
 #include "peripherals.h"
 #include "pin_mux.h"
 #include "clock_config.h"
-#include "MKL46Z4.h"
 #include "fsl_debug_console.h"
 #include "fsl_smc.h"
-
-/* TODO: insert other include files here. */
-#include "SD2_board.h"
+#include "key.h"
 #include "SD2_I2C.h"
-#include <stdbool.h>
-#include <string.h>
-#include "math.h"
-#include "mma8451.h"
-#include "Seg_LCD.h"
-#include "fsl_lpsci.h"
 
-#include "clock_helper.h"
+// Librerias que difieren
+#include "MKL43Z4.h"
+#include "clock_helper_KL43.h"
+#include "SD2_board_KL43.h"
+#include "fsl_common.h"
+#include "fsl_slcd.h"
+#include "mma8451.h" // cambia en el .c la funcion para leer IRQ de los pines
+//#include "slcd_engine.h"
+//#include "Seg_LCD.h"
+//#include "fsl_lpsci.h"
+
 
 /* TODO: insert other definitions and declarations here. */
 
@@ -65,7 +37,7 @@ void toVLPR(){
 
 	// Tambien desactivamos la opción de interrupción en
 	// DataReady, para que no "despierte" al procesador.
-	disableDataInterrupt();
+	mma8451_disableDataInterrupt();
 }
 
 
@@ -78,8 +50,7 @@ void toRUN(){
 	APP_SetClockRunFromVlpr();
 }
 
-
-double getAcc(int16_t accX,int16_t accY,int16_t accZ){
+double getAcc2(int16_t accX,int16_t accY,int16_t accZ){
 	return (pow(accX,2) + pow(accY,2) + pow(accZ,2));
 }
 
@@ -98,6 +69,18 @@ typedef enum {
 	DISPLAY,
 }MEF_State;
 
+int8_t nroSeparado[3];
+
+void separarDigitos(double nro){
+	nro += 0.005; // para redondear a dos decimales
+	nroSeparado[0] = (int8_t) nro % 10; // valor de la unidad
+	nroSeparado[1] = (int8_t) ((nro - nroSeparado[0])*10) % 10; // primer decimal
+	nroSeparado[2] = (int8_t) ((nro - nroSeparado[0] - nroSeparado[1]/10) * 100) % 10; // segundo decimal
+}
+
+void MEF_Main_Init(){
+	toVLPR();
+	PRINTF("\tA Reposo. fclk = %d MHz\n", CLOCK_GetFreq(kCLOCK_CoreSysClk)/(uint32_t)1E6);
 
 void MEF_Main_Init(){
 	toVLPR();
@@ -107,7 +90,7 @@ void MEF_Main_tick(){
 	static MEF_State estadoActual = REPOSO;
 
 	// datos internos
-	double accAnterior = 0, accMayor = 0, accMayorRaiz = 0;
+	static double accAnterior, accMayor, accMayorRaiz;
 
 	switch(estadoActual){
 	case REPOSO:
@@ -117,9 +100,10 @@ void MEF_Main_tick(){
 			accAnterior = 0;
 			accMayor = 0;
 			timerBlink = 500;
-			PRINTF("A Caida Libre\n");
+			PRINTF("\tA Caida Libre. fclk = %d MHz\n", CLOCK_GetFreq(kCLOCK_CoreSysClk)/(uint32_t)1E6);
 			estadoActual = CAIDA_LIBRE;
-			enableDataInterrupt();
+			mma8451_enableDataInterrupt();
+			accAnterior = 0;
 		}
 		break;
 	case CAIDA_LIBRE:
@@ -139,29 +123,33 @@ void MEF_Main_tick(){
 		// Como estamos comparando aceleraciones cuadradas, la diferencia será como mínimo de 9.8^2 = 96.04
 		// Ponemos el "threshold" para la detección de choque a un poco más de la mitad, para que sea un
 		// poco más sensible según el golpe.
-		double acc = getAcc(accX /100.0 * 9.8, accY /100.0 * 9.8, accZ /100.0 * 9.8);
+		
+		double acc = getAcc2(accX /100.0 * 9.8, accY /100.0 * 9.8, accZ /100.0 * 9.8);
 		double diferencia = abs(acc - accAnterior);
 		//PRINTF("%f,%f,diferencia: %f\n",acc,accAnterior,diferencia);
 
-		if(acc > accMayor) accMayor = acc;
+		if(acc > accMayor){
+			accMayor = acc;
+		}
 
 		if(diferencia >= 50 && accAnterior != 0){
 			timer = 10000;
 			accMayorRaiz = sqrt(accMayor);
 			board_setLed(BOARD_LED_ID_ROJO, BOARD_LED_MSG_OFF);
 			estadoActual = DISPLAY;
-			PRINTF("A Display\n");
+			separarDigitos((accMayorRaiz/9.8));
+			PRINTF("\tAceleración máxima: %d,%d%d g\n", nroSeparado[0], nroSeparado[1], nroSeparado[2]);
+			PRINTF("\tA Display\n");
 		}
 		accAnterior = acc;
 
 		break;
 	case DISPLAY:
-		SegLCD_DisplayDecimal(accMayorRaiz);
-		if(timer == 0 || board_getSw(BOARD_SW_ID_1))
-		{
-			toVLPR();
+		//SegLCD_DisplayDecimal(accMayorRaiz);
+		if(timer == 0 || board_getSw(BOARD_SW_ID_1)){
 			estadoActual = REPOSO;
-			PRINTF("A Reposo\n");
+			toVLPR();
+			PRINTF("\tA Reposo. fclk = %d MHz\n", CLOCK_GetFreq(kCLOCK_CoreSysClk)/(uint32_t)1E6);
 		}
 		break;
 	}
@@ -181,12 +169,11 @@ int main(void) {
 	SD2_I2C_init();
 
 	/* =========== MMA8451 ================ */
-
 	mma8451_init_freefall();
 
 	/* =========== LCD ================ */
-	SegLCD_Init();
-    SegLCD_DP2_Off();
+	//SLCD_APP_Init();
+    //SegLCD_DP2_Off();
 
     /* inicializa interrupción de systick cada 1 ms */
 	SysTick_Config(SystemCoreClock / 1000U);
@@ -203,10 +190,8 @@ int main(void) {
     return 0 ;
 }
 
-void SysTick_Handler(void)
-{
-   if (timerBlink)
-       timerBlink--;
-   if (timer)
-	   timer--;
+void SysTick_Handler(void){
+   (timerBlink > 0) ? (timerBlink--) : (timerBlink = 0);
+   (timer > 0) ? (timer--) : (timer = 0);
 }
+

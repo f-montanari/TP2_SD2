@@ -106,6 +106,17 @@ bool mma8451_getFreefall(void);
  */
 void mma8451_clearFreefall(void);
 
+/*
+ * Deshabilita interrupción de Data Ready
+ */
+void mma8451_disableDataInterrupt(void);
+
+/*
+ * Habilita interrupción de Data Ready
+ */
+
+void mma8451_enableDataInterrupt(void);
+
 void mma8451_setDataRate(DR_enum rate);
 
 /*==================[cplusplus]==============================================*/
@@ -115,3 +126,4 @@ void mma8451_setDataRate(DR_enum rate);
 
 /*==================[end of file]============================================*/
 #endif /* MMA8451_H_ */
+
