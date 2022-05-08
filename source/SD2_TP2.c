@@ -50,7 +50,6 @@ void toRUN(){
 	APP_SetClockRunFromVlpr();
 }
 
-
 double getAcc2(int16_t accX,int16_t accY,int16_t accZ){
 	return (pow(accX,2) + pow(accY,2) + pow(accZ,2));
 }
@@ -82,6 +81,9 @@ void separarDigitos(double nro){
 void MEF_Main_Init(){
 	toVLPR();
 	PRINTF("\tA Reposo. fclk = %d MHz\n", CLOCK_GetFreq(kCLOCK_CoreSysClk)/(uint32_t)1E6);
+
+void MEF_Main_Init(){
+	toVLPR();
 }
 
 void MEF_Main_tick(){
@@ -121,6 +123,7 @@ void MEF_Main_tick(){
 		// Como estamos comparando aceleraciones cuadradas, la diferencia será como mínimo de 9.8^2 = 96.04
 		// Ponemos el "threshold" para la detección de choque a un poco más de la mitad, para que sea un
 		// poco más sensible según el golpe.
+		
 		double acc = getAcc2(accX /100.0 * 9.8, accY /100.0 * 9.8, accZ /100.0 * 9.8);
 		double diferencia = abs(acc - accAnterior);
 		//PRINTF("%f,%f,diferencia: %f\n",acc,accAnterior,diferencia);
@@ -170,6 +173,7 @@ int main(void) {
 
 	/* =========== LCD ================ */
 	//SLCD_APP_Init();
+    //SegLCD_DP2_Off();
 
     /* inicializa interrupción de systick cada 1 ms */
 	SysTick_Config(SystemCoreClock / 1000U);

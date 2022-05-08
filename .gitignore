@@ -1,3 +1,6 @@
 *
 !.gitignore
-!*/source
+!source/
+!source/*
+source/mtb.c
+source/semihost_hardfault.c

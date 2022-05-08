@@ -49,6 +49,7 @@
 /*==================[macros and definitions]=================================*/
 #define MMA8451_I2C_ADDRESS     (0x1d)
 
+#if defined CPU_MKL46Z256VLL4
 #define INT1_PORT       PORTC
 #define INT1_GPIO       GPIOC
 #define INT1_PIN        5
@@ -56,6 +57,19 @@
 #define INT2_PORT		PORTD
 #define INT2_GPIO		GPIOD
 #define INT2_PIN		1
+
+#elif defined _MKL43Z4_H_
+
+// TODO: Definir para otro KL43Z
+#define INT1_PORT       PORTC
+#define INT1_GPIO       GPIOC
+#define INT1_PIN        -1
+
+#define INT2_PORT		PORTD
+#define INT2_GPIO		GPIOD
+#define INT2_PIN		1
+
+#endif
 
 typedef union
 {
@@ -417,7 +431,6 @@ void mma8451_init_freefall(void){
 	ctr_reg1.ACTIVE = 0;
 	ctr_reg1.DR = DR_50hz;
 	mma8451_write_reg(CTRL_REG1_ADDRESS, ctr_reg1.data); // 0x20
-
 
 	// 2) Configurar para FreeFall usando ELE=1, OAE = 0
 	// En este modo, el bit EA es seteado después del "debounce counter"

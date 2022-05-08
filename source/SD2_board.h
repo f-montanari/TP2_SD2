@@ -36,6 +36,7 @@
 #define SD2_BOARD_H_
 
 /*==================[inclusions]=============================================*/
+#if defined CPU_MKL46Z256VLL4
 #include "MKL46Z4.h"
 #include "stdbool.h"
 
@@ -100,6 +101,10 @@ bool board_getSw(board_swId_enum id);
 /*==================[cplusplus]==============================================*/
 #ifdef __cplusplus
 }
+#endif
+
+#elif defined _MKL43Z_H_
+
 #endif
 
 /*==================[end of file]============================================*/
