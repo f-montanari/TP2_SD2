@@ -58,8 +58,7 @@
 #define INT2_GPIO		GPIOD
 #define INT2_PIN		1
 
-#elif defined _MKL43Z4_H_
-
+#else
 // TODO: Definir para otro KL43Z
 #define INT1_PORT       PORTC
 #define INT1_GPIO       GPIOC
@@ -429,7 +428,7 @@ void mma8451_init_freefall(void){
 
 	CTRL_REG1_t ctr_reg1;
 	ctr_reg1.ACTIVE = 0;
-	ctr_reg1.DR = DR_50hz;
+	ctr_reg1.DR = DR_12p5hz;
 	mma8451_write_reg(CTRL_REG1_ADDRESS, ctr_reg1.data); // 0x20
 
 	// 2) Configurar para FreeFall usando ELE=1, OAE = 0
@@ -466,7 +465,7 @@ void mma8451_init_freefall(void){
 	// un debounce de 120 ms
 	// En este caso, 120 ms/20 ms = 6 = 110
 	FF_MT_COUNT count;
-	count.D = 3;
+	count.D = 6;
 	mma8451_write_reg(FF_MT_COUNT_ADDRESS, count.data);
 
 	// 5) Habilitar funcionalidad de interrupt
@@ -563,7 +562,11 @@ int16_t mma8451_getAcZ(void)
 
 void PORTC_PORTD_IRQHandler(void){
 	// INT1
-    if(GPIO_PortGetInterruptFlags(INT1_GPIO)){
+#if defined CPU_MKL46Z256VLL4
+	if(GPIO_GetPinsInterruptFlags(INT1_GPIO)){
+#else
+	if(GPIO_PortGetInterruptFlags(INT1_GPIO)){
+#endif
     	int16_t readG;
 		INT_SOURCE_t intSource;
 		STATUS_t status;
@@ -597,7 +600,11 @@ void PORTC_PORTD_IRQHandler(void){
     }
 
     // INT 2
-    if(GPIO_PortGetInterruptFlags(INT2_GPIO)){
+#if defined CPU_MKL46Z256VLL4
+	if(GPIO_GetPinsInterruptFlags(INT2_GPIO)){
+#else
+	if(GPIO_PortGetInterruptFlags(INT2_GPIO)){
+#endif
 
     	// Detectamos la caída, ahora hay que limpiar el registro para que
     	// podamos detectar una nueva si llegamos a necesitarlo.

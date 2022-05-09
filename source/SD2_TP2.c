@@ -1,4 +1,3 @@
-// Librerias comunes a ambas placas
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
@@ -12,28 +11,26 @@
 #include "fsl_smc.h"
 #include "key.h"
 #include "SD2_I2C.h"
-
-// Librerias que difieren
-#include "MKL43Z4.h"
-#include "clock_helper_KL43.h"
-#include "SD2_board_KL43.h"
-#include "fsl_common.h"
-#include "fsl_slcd.h"
-#include "mma8451.h" // cambia en el .c la funcion para leer IRQ de los pines
-//#include "slcd_engine.h"
-//#include "Seg_LCD.h"
-//#include "fsl_lpsci.h"
-
+#include "mma8451.h" // Agregué instrucción de pre-procesador para que funcione en ambas
+#include "Seg_LCD.h"
+#include "fsl_lpsci.h"
+#include "clock_helper.h"
+#include "MKL46Z4.h"
 
 /* TODO: insert other definitions and declarations here. */
 
 /*
- * Como el acelerómetro cambia solo de frecuencia de reloj,
- * sólo tenemos que cambiar el del procesador.
+ * No solo bajamos la frecuencia del reloj, también desactivamos
+ * las interrupciones DRDY que haga el acelerómetro (y de paso bajamos
+ * la frecuencia de adquisición de datos) y limpiamos el LCD.
  */
 void toVLPR(){
 	// Seteo procesador en modo VLPR
 	APP_SetClockVlpr();
+
+	// Limpiamos LCD
+	SegLCD_Clear();
+	SegLCD_DP2_Off();
 
 	// Tambien desactivamos la opción de interrupción en
 	// DataReady, para que no "despierte" al procesador.
@@ -57,10 +54,12 @@ double getAcc2(int16_t accX,int16_t accY,int16_t accZ){
 /*==================[macros and definitions]=================================*/
 #define MAXIMO_MILISEG 1000
 #define MAXIMA_CUENTA    1000
+#define BLINK_TIME 50
 
 /*==================[internal data declaration]==============================*/
-int timerBlink = 500;
+int timerBlink = BLINK_TIME;
 int timer = 10000;
+int8_t nroSeparado[3];
 
 /*================ [implementacion MEF] =====================================*/
 typedef enum {
@@ -69,8 +68,10 @@ typedef enum {
 	DISPLAY,
 }MEF_State;
 
-int8_t nroSeparado[3];
-
+/*
+ * Debido a que la función PRINTF integrada no acepta el modificador "%.3f" para mostrar decimales
+ * se tuvo que hacer esta función para poder mostrar en consola el valor de la aceleración.
+ */
 void separarDigitos(double nro){
 	nro += 0.005; // para redondear a dos decimales
 	nroSeparado[0] = (int8_t) nro % 10; // valor de la unidad
@@ -81,9 +82,6 @@ void separarDigitos(double nro){
 void MEF_Main_Init(){
 	toVLPR();
 	PRINTF("\tA Reposo. fclk = %d MHz\n", CLOCK_GetFreq(kCLOCK_CoreSysClk)/(uint32_t)1E6);
-
-void MEF_Main_Init(){
-	toVLPR();
 }
 
 void MEF_Main_tick(){
@@ -99,7 +97,7 @@ void MEF_Main_tick(){
 			mma8451_clearFreefall();
 			accAnterior = 0;
 			accMayor = 0;
-			timerBlink = 500;
+			timerBlink = BLINK_TIME;
 			PRINTF("\tA Caida Libre. fclk = %d MHz\n", CLOCK_GetFreq(kCLOCK_CoreSysClk)/(uint32_t)1E6);
 			estadoActual = CAIDA_LIBRE;
 			mma8451_enableDataInterrupt();
@@ -109,7 +107,7 @@ void MEF_Main_tick(){
 	case CAIDA_LIBRE:
 		// Blink led rojo
 		if(timerBlink == 0){
-			timerBlink = 500;
+			timerBlink = BLINK_TIME;
 			board_setLed(BOARD_LED_ID_ROJO, BOARD_LED_MSG_TOGGLE);
 		}
 
@@ -138,14 +136,15 @@ void MEF_Main_tick(){
 			board_setLed(BOARD_LED_ID_ROJO, BOARD_LED_MSG_OFF);
 			estadoActual = DISPLAY;
 			separarDigitos((accMayorRaiz/9.8));
-			PRINTF("\tAceleración máxima: %d,%d%d g\n", nroSeparado[0], nroSeparado[1], nroSeparado[2]);
+			PRINTF("\tAceleración máxima: %d.%d%d\n", nroSeparado[0], nroSeparado[1], nroSeparado[2]);
 			PRINTF("\tA Display\n");
 		}
 		accAnterior = acc;
 
 		break;
 	case DISPLAY:
-		//SegLCD_DisplayDecimal(accMayorRaiz);
+		SegLCD_DisplayDecimal(accMayorRaiz*10 + 0.05); // Redondeo a 2 decimales.
+		SegLCD_DP2_On();
 		if(timer == 0 || board_getSw(BOARD_SW_ID_1)){
 			estadoActual = REPOSO;
 			toVLPR();
@@ -172,8 +171,7 @@ int main(void) {
 	mma8451_init_freefall();
 
 	/* =========== LCD ================ */
-	//SLCD_APP_Init();
-    //SegLCD_DP2_Off();
+	SegLCD_Init();
 
     /* inicializa interrupción de systick cada 1 ms */
 	SysTick_Config(SystemCoreClock / 1000U);
@@ -191,7 +189,10 @@ int main(void) {
 }
 
 void SysTick_Handler(void){
-   (timerBlink > 0) ? (timerBlink--) : (timerBlink = 0);
-   (timer > 0) ? (timer--) : (timer = 0);
+   if(timerBlink)
+	   timerBlink--;
+
+   if(timer)
+	   timer--;
 }
 

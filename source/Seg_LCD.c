@@ -243,6 +243,12 @@ void SegLCD_DisplayError(uint8_t ErrorNum){//Displays Err# on screen, where # is
 	}
 }//End SegLCD_DisplayError
 
+void SegLCD_Clear(){
+	for(int i = 0; i<LCD_NUM_FRONTPLANE_PINS; i++){
+		LCD->WF8B[LCD_Frontplane_Pin[i]] = (LCD_CLEAR);
+	}
+}
+
 //SegLCD_DP1_On() defined as macro in Seg_LCD.h, Turns on leftmost decimal without disturbing rest of display
 //SegLCD_DP1_Off() defined as macro in Seg_LCD.h, Turns off leftmost decimal without disturbing rest of display
 //SegLCD_DP2_On() defined as macro in Seg_LCD.h, Turns on center decimal without disturbing rest of display

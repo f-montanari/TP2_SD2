@@ -16,6 +16,7 @@ void SegLCD_DisplayDecimal(uint16_t Value);
 void SegLCD_DisplayHex(uint16_t Value);
 void SegLCD_DisplayTime(uint8_t Value1, uint8_t Value2);
 void SegLCD_DisplayError(uint8_t ErrorNum);
+void SegLCD_Clear();
 
 //Define Number of Front and Back plane pins
 #define LCD_NUM_FRONTPLANE_PINS 8
