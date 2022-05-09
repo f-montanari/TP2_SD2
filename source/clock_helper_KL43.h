@@ -5,8 +5,8 @@
  *      Author: Franco
  */
 
-#ifndef CLOCK_HELPER_H_
-#define CLOCK_HELPER_H_
+#ifndef CLOCK_HELPER_KL43_H_
+#define CLOCK_HELPER_KL43_H_
 #include "fsl_smc.h"
 
 /**
@@ -24,4 +24,4 @@ void APP_SetClockRunFromVlpr(void);
  */
 void APP_ShowPowerMode(smc_power_state_t currentPowerState);
 
-#endif /* CLOCK_HELPER_H_ */
+#endif /* CLOCK_HELPER_KL43_H_ */

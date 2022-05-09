@@ -126,4 +126,3 @@ void mma8451_setDataRate(DR_enum rate);
 
 /*==================[end of file]============================================*/
 #endif /* MMA8451_H_ */
-

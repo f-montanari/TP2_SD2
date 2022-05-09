@@ -49,7 +49,6 @@
 /*==================[macros and definitions]=================================*/
 #define MMA8451_I2C_ADDRESS     (0x1d)
 
-#if defined CPU_MKL46Z256VLL4
 #define INT1_PORT       PORTC
 #define INT1_GPIO       GPIOC
 #define INT1_PIN        5
@@ -57,19 +56,6 @@
 #define INT2_PORT		PORTD
 #define INT2_GPIO		GPIOD
 #define INT2_PIN		1
-
-#elif defined _MKL43Z4_H_
-
-// TODO: Definir para otro KL43Z
-#define INT1_PORT       PORTC
-#define INT1_GPIO       GPIOC
-#define INT1_PIN        -1
-
-#define INT2_PORT		PORTD
-#define INT2_GPIO		GPIOD
-#define INT2_PIN		1
-
-#endif
 
 typedef union
 {
@@ -432,6 +418,7 @@ void mma8451_init_freefall(void){
 	ctr_reg1.DR = DR_50hz;
 	mma8451_write_reg(CTRL_REG1_ADDRESS, ctr_reg1.data); // 0x20
 
+
 	// 2) Configurar para FreeFall usando ELE=1, OAE = 0
 	// En este modo, el bit EA es seteado después del "debounce counter"
 	//
@@ -446,27 +433,26 @@ void mma8451_init_freefall(void){
 	mma8451_write_reg(FF_MT_CFG_ADDRESS, cfg.data);
 
 	// 3) Setear el threshold (para qué valor se considera caída libre?)
-	// En este caso, tomaremos un valor de 0.2g (experimental)
-	// Teniendo 0.2g/0.063 g/bit = 3
-	// El bit DBCNTM hace resetear el contador del threshold cuando detecta
+	// En este caso, tomaremos un valor de 0.2g (ejemplo)
+	// Teniendo 0.2g/0.063 g/ctas = 3
+	// En este caso, se consideró un umbral de 0.063 g/ctas * 5 ctas = 0.315 g
+	// El bit DBCNTM en 1 hace resetear el contador del threshold cuando detecta
 	// que no hay más "low-g event", lo cual no queremos para evitar posibles
 	// ruidos.
 
 	FF_MT_THS ths;
 	ths.THS = 5;
-	ths.DBCNTM = 0;
+	ths.DBCNTM = 1;
 	mma8451_write_reg(FF_MT_THS_ADDRESS, ths.data);
 
 	// 4) Setear el contador de "debounce"
 	// Este es un registro que setea la constante de tiempo para un filtro pasa
 	// bajos. Cabe aclarar que estos dependen del modo en el que está el chip,
 	// (Ver tabla 7 ref AN4070)
-	// Usando los datos de ejemplo (posiblemente haya que cambiar configuración
-	// para que detecte en modo Low Power) donde usamos un rate de 50 Hz y usamos
-	// un debounce de 120 ms
-	// En este caso, 120 ms/20 ms = 6 = 110
+	// En este caso, 20 ms/ctas * 4 ctas = 80 ms
+	// Los datos del ejemplo eran 120 ms => 6 ctas
 	FF_MT_COUNT count;
-	count.D = 3;
+	count.D = 4;
 	mma8451_write_reg(FF_MT_COUNT_ADDRESS, count.data);
 
 	// 5) Habilitar funcionalidad de interrupt
@@ -618,4 +604,3 @@ void PORTC_PORTD_IRQHandler(void){
 }
 
 /*==================[end of file]============================================*/
-

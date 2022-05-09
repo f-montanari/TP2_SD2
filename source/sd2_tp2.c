@@ -14,17 +14,11 @@
 #include "MKL43Z4.h"
 #include "clock_helper_KL43.h"
 #include "SD2_board_KL43.h"
-//#include "../slcd/slcd_engine.h"
 #include "slcd/slcd_driver.h"
 #include "key.h"
 #include "SD2_I2C.h"
 #include "mma8451.h"
-//#include "Seg_LCD.h"
-//#include "fsl_lpsci.h"
 
-
-/* TODO: insert other definitions and declarations here. */
-tSLCD_Engine *slcd_engine_main;
 /*
  * Como el acelerómetro cambia solo de frecuencia de reloj,
  * sólo tenemos que cambiar el del procesador.
@@ -192,4 +186,3 @@ void SysTick_Handler(void){
    (timerBlink > 0) ? (timerBlink--) : (timerBlink = 0);
    (timer > 0) ? (timer--) : (timer = 0);
 }
-
