@@ -2,5 +2,7 @@
 !.gitignore
 !source/
 !source/*
+!slcd/
+!slcd/*
 source/mtb.c
 source/semihost_hardfault.c
