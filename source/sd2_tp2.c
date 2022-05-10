@@ -1,4 +1,3 @@
-// Librerias comunes a ambas placas
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
@@ -10,22 +9,15 @@
 #include "clock_config.h"
 #include "fsl_debug_console.h"
 #include "fsl_smc.h"
-#include "key.h"
-#include "SD2_I2C.h"
 
-// Librerias que difieren
+/* TODO: insert other include files here. */
 #include "MKL43Z4.h"
 #include "clock_helper_KL43.h"
 #include "SD2_board_KL43.h"
-#include "fsl_common.h"
-#include "fsl_slcd.h"
-#include "mma8451.h" // cambia en el .c la funcion para leer IRQ de los pines
-//#include "slcd_engine.h"
-//#include "Seg_LCD.h"
-//#include "fsl_lpsci.h"
-
-
-/* TODO: insert other definitions and declarations here. */
+#include "slcd/slcd_driver.h"
+#include "key.h"
+#include "SD2_I2C.h"
+#include "mma8451.h"
 
 /*
  * Como el acelerómetro cambia solo de frecuencia de reloj,
@@ -50,8 +42,11 @@ void toRUN(){
 	APP_SetClockRunFromVlpr();
 }
 
+/*
+ * returns acc value in (m/s^2)^2
+ */
 double getAcc2(int16_t accX,int16_t accY,int16_t accZ){
-	return (pow(accX,2) + pow(accY,2) + pow(accZ,2));
+	return (pow(accX/100.0*9.8,2) + pow(accY/100.0*9.8,2) + pow(accZ/100.0*9.8,2));
 }
 
 /*==================[macros and definitions]=================================*/
@@ -81,9 +76,6 @@ void separarDigitos(double nro){
 void MEF_Main_Init(){
 	toVLPR();
 	PRINTF("\tA Reposo. fclk = %d MHz\n", CLOCK_GetFreq(kCLOCK_CoreSysClk)/(uint32_t)1E6);
-
-void MEF_Main_Init(){
-	toVLPR();
 }
 
 void MEF_Main_tick(){
@@ -103,7 +95,7 @@ void MEF_Main_tick(){
 			PRINTF("\tA Caida Libre. fclk = %d MHz\n", CLOCK_GetFreq(kCLOCK_CoreSysClk)/(uint32_t)1E6);
 			estadoActual = CAIDA_LIBRE;
 			mma8451_enableDataInterrupt();
-			accAnterior = 0;
+			accAnterior = 0.0;
 		}
 		break;
 	case CAIDA_LIBRE:
@@ -123,21 +115,22 @@ void MEF_Main_tick(){
 		// Como estamos comparando aceleraciones cuadradas, la diferencia será como mínimo de 9.8^2 = 96.04
 		// Ponemos el "threshold" para la detección de choque a un poco más de la mitad, para que sea un
 		// poco más sensible según el golpe.
-		
-		double acc = getAcc2(accX /100.0 * 9.8, accY /100.0 * 9.8, accZ /100.0 * 9.8);
+		double acc = getAcc2(accX, accY, accZ);
 		double diferencia = abs(acc - accAnterior);
-		//PRINTF("%f,%f,diferencia: %f\n",acc,accAnterior,diferencia);
 
 		if(acc > accMayor){
 			accMayor = acc;
 		}
 
 		if(diferencia >= 50 && accAnterior != 0){
+			estadoActual = DISPLAY;
 			timer = 10000;
 			accMayorRaiz = sqrt(accMayor);
 			board_setLed(BOARD_LED_ID_ROJO, BOARD_LED_MSG_OFF);
-			estadoActual = DISPLAY;
-			separarDigitos((accMayorRaiz/9.8));
+			SLCD_Driver_Init();
+			SLCD_StartDisplay(LCD);
+			SLCD_Driver_ShowDigital(accMayorRaiz/9.8);
+			separarDigitos(accMayorRaiz/9.8);
 			PRINTF("\tAceleración máxima: %d,%d%d g\n", nroSeparado[0], nroSeparado[1], nroSeparado[2]);
 			PRINTF("\tA Display\n");
 		}
@@ -145,19 +138,17 @@ void MEF_Main_tick(){
 
 		break;
 	case DISPLAY:
-		//SegLCD_DisplayDecimal(accMayorRaiz);
 		if(timer == 0 || board_getSw(BOARD_SW_ID_1)){
 			estadoActual = REPOSO;
 			toVLPR();
+			SLCD_Driver_Clear();
+			SLCD_StopDisplay(LCD);
 			PRINTF("\tA Reposo. fclk = %d MHz\n", CLOCK_GetFreq(kCLOCK_CoreSysClk)/(uint32_t)1E6);
 		}
 		break;
 	}
 }
 
-/*
- * @brief   Application entry point.
- */
 int main(void) {
 
     BOARD_InitBootClocks();
@@ -172,8 +163,7 @@ int main(void) {
 	mma8451_init_freefall();
 
 	/* =========== LCD ================ */
-	//SLCD_APP_Init();
-    //SegLCD_DP2_Off();
+	// se hace en la MEF, sino no funciona
 
     /* inicializa interrupción de systick cada 1 ms */
 	SysTick_Config(SystemCoreClock / 1000U);
@@ -183,6 +173,8 @@ int main(void) {
 	NVIC_SetPriority(SysTick_IRQn,1);
 
 	MEF_Main_Init();
+
+
 
     while(1) {
     	MEF_Main_tick();
@@ -194,4 +186,3 @@ void SysTick_Handler(void){
    (timerBlink > 0) ? (timerBlink--) : (timerBlink = 0);
    (timer > 0) ? (timer--) : (timer = 0);
 }
-
